@@ -182,16 +182,31 @@ export function Reader({ source, sourceType, filename, fileType, onBack }: Reade
 
   // Load voices
   useEffect(() => {
+    const getOptimalDefaultVoice = (voices: SpeechSynthesisVoice[]) => {
+      if (!voices || voices.length === 0) return null;
+      
+      // Priority 1: Google UK English Male
+      const p1 = voices.find(v => v.name.includes('Google UK English Male'));
+      if (p1) return p1;
+      
+      // Priority 2: Any en-GB voice
+      const p2 = voices.find(v => v.lang.includes('en-GB'));
+      if (p2) return p2;
+      
+      // Priority 3: Browser default or first
+      return voices.find(v => v.default) || voices[0];
+    };
+
     const loadVoices = () => {
       const availableVoices = TTSEngine.getVoices();
       setVoices(availableVoices);
-      if (availableVoices.length > 0 && !selectedVoiceURI) {
-        // Try to find a good default English voice
-        const defaultVoice = availableVoices.find(v => v.name === 'Google UK English Male')
-                          || availableVoices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) 
-                          || availableVoices.find(v => v.lang.startsWith('en')) 
-                          || availableVoices[0];
-        setSelectedVoiceURI(defaultVoice.voiceURI);
+      
+      if (availableVoices.length > 0) {
+        setSelectedVoiceURI(prev => {
+          if (prev) return prev; // Keep user's saved preference
+          const optimal = getOptimalDefaultVoice(availableVoices);
+          return optimal ? optimal.voiceURI : '';
+        });
       }
     };
 
