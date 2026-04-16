@@ -3,6 +3,7 @@ import { UploadCloud, BookOpen, Loader2, Library, Settings, Trash2, Edit2, X } f
 import { motion, AnimatePresence } from 'motion/react';
 import type { SourceType } from '../App';
 import { StorageService, SavedBook, BookProgress } from '../services/StorageService';
+import { extractTextFromEpub } from '../lib/epub';
 
 interface GatewayProps {
   onDocumentSelected: (source: string | File, type: SourceType, filename: string, fileType?: string) => void;
@@ -57,8 +58,9 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
   }, []);
 
   const handleFile = async (file: File) => {
-    if (file.type !== 'application/pdf' && file.type !== 'text/plain') {
-      setError('Please upload a valid PDF or TXT file.');
+    const isEpub = file.name.endsWith('.epub') || file.type === 'application/epub+zip';
+    if (file.type !== 'application/pdf' && file.type !== 'text/plain' && !isEpub) {
+      setError('Please upload a valid PDF, TXT, or EPUB file.');
       return;
     }
     setError(null);
@@ -67,10 +69,10 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
     try {
       const id = crypto.randomUUID();
       const title = file.name.replace(/\.[^/.]+$/, "");
-      const fileType = file.type === 'application/pdf' ? 'pdf' : 'txt';
+      const fileType = file.type === 'application/pdf' ? 'pdf' : isEpub ? 'txt' : 'txt';
       
       let fileData = '';
-      if (fileType === 'pdf') {
+      if (file.type === 'application/pdf') {
         fileData = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => {
@@ -80,6 +82,8 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
           reader.onerror = () => reject(reader.error);
           reader.readAsDataURL(file);
         });
+      } else if (isEpub) {
+        fileData = await extractTextFromEpub(file);
       } else {
         fileData = await file.text();
       }
@@ -89,6 +93,7 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
       setPersonalBooks(updatedBooks);
       setIsProcessing(false);
     } catch (err: any) {
+      console.error(err);
       setError('Failed to save book to local vault.');
       setIsProcessing(false);
     }
@@ -216,7 +221,7 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
                       </div>
                       <div>
                         <p className="text-zinc-200 font-medium text-lg">Upload Book</p>
-                        <p className="text-zinc-500 text-sm mt-1">PDF or TXT</p>
+                        <p className="text-zinc-500 text-sm mt-1">EPUB, PDF, or TXT</p>
                       </div>
                     </>
                   )}
@@ -347,7 +352,7 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
 
         <input
           type="file"
-          accept="application/pdf,text/plain"
+          accept=".txt,.pdf,.epub,application/epub+zip,application/pdf,text/plain"
           className="hidden"
           ref={fileInputRef}
           onChange={(e) => {
