@@ -241,7 +241,9 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     
                     {/* Settings / Delete Actions */}
-                    <div className="absolute top-2 right-2 z-10 flex gap-2">
+                    <div className={`absolute top-2 z-10 flex items-center gap-2 transition-all duration-200 ${
+                      showDeleteFor === book.id ? 'inset-x-0 w-full justify-center px-2' : 'right-2 justify-end'
+                    }`}>
                       <AnimatePresence>
                         {showDeleteFor === book.id && (
                           <>
@@ -250,35 +252,35 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
                               animate={{ opacity: 1, scale: 1, x: 0 }}
                               exit={{ opacity: 0, scale: 0.8, x: 10 }}
                               onClick={(e) => handleEditClick(e, book)}
-                              className="p-1.5 bg-zinc-800/90 text-zinc-300 rounded-md hover:bg-zinc-700 hover:text-zinc-100 transition-colors backdrop-blur-md border border-zinc-700/50 shadow-sm"
+                              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-800/90 text-zinc-300 rounded-md hover:bg-zinc-700 hover:text-zinc-100 transition-colors backdrop-blur-md border border-zinc-700/50 shadow-sm"
                               title="Edit Book"
                             >
-                              <Edit2 className="w-4 h-4" />
+                              <Edit2 className="w-5 h-5" />
                             </motion.button>
                             <motion.button
                               initial={{ opacity: 0, scale: 0.8, x: 10 }}
                               animate={{ opacity: 1, scale: 1, x: 0 }}
                               exit={{ opacity: 0, scale: 0.8, x: 10 }}
                               onClick={(e) => handleDeleteLocalBook(e, book.id)}
-                              className="p-1.5 bg-red-950/90 text-red-400 rounded-md hover:bg-red-900 hover:text-red-300 transition-colors backdrop-blur-md border border-red-900/50 shadow-sm"
+                              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-red-950/90 text-red-400 rounded-md hover:bg-red-900 hover:text-red-300 transition-colors backdrop-blur-md border border-red-900/50 shadow-sm"
                               title="Delete Book"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-5 h-5" />
                             </motion.button>
                           </>
                         )}
                       </AnimatePresence>
                       <button
                         onClick={(e) => toggleDelete(e, book.id)}
-                        className={`p-1.5 rounded-md transition-colors backdrop-blur-md border shadow-sm
+                        className={`p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md transition-all backdrop-blur-md border shadow-sm
                           ${showDeleteFor === book.id 
-                            ? 'bg-zinc-800 text-zinc-200 border-zinc-700' 
-                            : 'bg-zinc-900/80 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-200 opacity-0 group-hover:opacity-100'
+                            ? 'bg-zinc-800 text-zinc-200 border-zinc-700 opacity-100' 
+                            : 'bg-zinc-900/80 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-200 opacity-100 md:opacity-0 md:group-hover:opacity-100'
                           }
                         `}
                         title="Settings"
                       >
-                        <Settings className="w-4 h-4" />
+                        <Settings className="w-5 h-5" />
                       </button>
                     </div>
 
