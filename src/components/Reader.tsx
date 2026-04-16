@@ -45,6 +45,7 @@ export function Reader({ source, sourceType, filename, fileType, onBack }: Reade
 
   const containerRef = useRef<HTMLDivElement>(null);
   const activeSentenceRef = useRef<HTMLParagraphElement>(null);
+  const wakeLockRef = useRef<any>(null);
 
   // Data Ingestion Phase
   useEffect(() => {
@@ -423,8 +424,41 @@ export function Reader({ source, sourceType, filename, fileType, onBack }: Reade
   useEffect(() => {
     return () => {
       TTSEngine.stop();
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(console.error);
+      }
     };
   }, []);
+
+  // Wake Lock logic
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        }
+      } catch (err) {
+        console.error('Wake Lock error:', err);
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (wakeLockRef.current !== null) {
+        try {
+          await wakeLockRef.current.release();
+          wakeLockRef.current = null;
+        } catch (err) {
+          console.error('Wake Lock release error:', err);
+        }
+      }
+    };
+
+    if (playbackState === 'playing') {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+  }, [playbackState]);
 
   // Restart sentence if settings change while playing
   const isFirstRender = useRef(true);
@@ -462,16 +496,20 @@ export function Reader({ source, sourceType, filename, fileType, onBack }: Reade
   }
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans relative">
+    <div className="flex flex-col h-[100dvh] bg-zinc-950 text-zinc-100 overflow-hidden font-sans relative">
       {/* Top Bar */}
-      <header className="flex items-center justify-between px-6 py-4 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900 z-10 relative">
+      <header 
+        className="flex items-center justify-between px-3 sm:px-6 pb-3 sm:pb-4 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900 z-10 relative gap-2 sm:gap-4"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}
+      >
         {/* Progress Bar */}
         <div 
           className="absolute top-0 left-0 h-0.5 bg-zinc-400 transition-all duration-500 ease-out" 
           style={{ width: `${progressPercent}%` }} 
         />
         
-        <div className="flex items-center gap-2 sm:gap-4">
+        {/* Left Side (Rigid Flank) */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <button 
             onClick={() => {
               handleStop();
@@ -483,21 +521,26 @@ export function Reader({ source, sourceType, filename, fileType, onBack }: Reade
           </button>
           <button 
             onClick={() => setShowToc(!showToc)}
-            className={`min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2 rounded-full transition-colors ${showToc ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900'}`}
+            className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors ${showToc ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900'}`}
             title="Toggle Table of Contents"
           >
             <PanelLeft className="w-5 h-5" />
           </button>
-          <div className="flex flex-col">
-            <h2 className="text-sm font-medium text-zinc-300 truncate max-w-[200px] sm:max-w-xs">{filename}</h2>
-            <p className="text-xs text-zinc-500">
-              {currentChapter ? `${currentChapter} • ` : ''}
-              {progressPercent}% • {activeSentenceIndex + 1} / {sentences.length}
-            </p>
-          </div>
         </div>
         
-        <div className="flex items-center gap-1 sm:gap-2">
+        {/* Center (Elastic Truncated Text) */}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden text-center sm:text-left items-center sm:items-start mx-2">
+          <h2 className="text-sm font-medium text-zinc-300 w-full truncate whitespace-nowrap overflow-hidden text-ellipsis">
+            {filename}
+          </h2>
+          <p className="text-xs text-zinc-500 w-full truncate whitespace-nowrap overflow-hidden text-ellipsis">
+            {currentChapter ? `${currentChapter} • ` : ''}
+            {progressPercent}% • {activeSentenceIndex + 1} / {sentences.length}
+          </p>
+        </div>
+        
+        {/* Right Side (Rigid Flank) */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <button 
             onClick={() => setShowMinimap(!showMinimap)}
             className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors ${showMinimap ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900'}`}
@@ -778,7 +821,10 @@ export function Reader({ source, sourceType, filename, fileType, onBack }: Reade
       </AnimatePresence>
 
       {/* Bottom Control Bar */}
-      <div className="bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-900 pb-safe pt-3 px-6 z-10">
+      <div 
+        className="bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-900 pt-3 px-6 z-10"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+      >
         <div className="max-w-md mx-auto flex items-center justify-between pb-3">
           <div className="flex-1 flex justify-start">
             <button 
@@ -824,3 +870,4 @@ export function Reader({ source, sourceType, filename, fileType, onBack }: Reade
     </div>
   );
 }
+
