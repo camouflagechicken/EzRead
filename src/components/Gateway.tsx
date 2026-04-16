@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UploadCloud, BookOpen, Loader2, Library, Settings, Trash2 } from 'lucide-react';
+import { UploadCloud, BookOpen, Loader2, Library, Settings, Trash2, Edit2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { SourceType } from '../App';
 import { StorageService, SavedBook, BookProgress } from '../services/StorageService';
@@ -25,6 +25,9 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteFor, setShowDeleteFor] = useState<string | null>(null);
+  const [editingBook, setEditingBook] = useState<SavedBook | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAuthor, setEditAuthor] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -106,6 +109,26 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
     }
   };
 
+  const handleEditClick = (e: React.MouseEvent, book: SavedBook) => {
+    e.stopPropagation();
+    setEditingBook(book);
+    setEditTitle(book.title);
+    setEditAuthor(book.author || '');
+    setShowDeleteFor(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingBook) return;
+    try {
+      await StorageService.updateBookMetadata(editingBook.id, editTitle, editAuthor);
+      const updatedBooks = await StorageService.getAllBooks();
+      setPersonalBooks(updatedBooks);
+      setEditingBook(null);
+    } catch (err) {
+      setError('Failed to update book.');
+    }
+  };
+
   const toggleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setShowDeleteFor(showDeleteFor === id ? null : id);
@@ -130,7 +153,7 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 font-sans text-zinc-100 overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col h-[100dvh] bg-zinc-950 font-sans text-zinc-100 overflow-y-auto custom-scrollbar">
       <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8 sm:space-y-12">
         
         {/* Header */}
@@ -221,16 +244,28 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
                     <div className="absolute top-2 right-2 z-10 flex gap-2">
                       <AnimatePresence>
                         {showDeleteFor === book.id && (
-                          <motion.button
-                            initial={{ opacity: 0, scale: 0.8, x: 10 }}
-                            animate={{ opacity: 1, scale: 1, x: 0 }}
-                            exit={{ opacity: 0, scale: 0.8, x: 10 }}
-                            onClick={(e) => handleDeleteLocalBook(e, book.id)}
-                            className="p-1.5 bg-red-950/90 text-red-400 rounded-md hover:bg-red-900 hover:text-red-300 transition-colors backdrop-blur-md border border-red-900/50 shadow-sm"
-                            title="Delete Book"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </motion.button>
+                          <>
+                            <motion.button
+                              initial={{ opacity: 0, scale: 0.8, x: 10 }}
+                              animate={{ opacity: 1, scale: 1, x: 0 }}
+                              exit={{ opacity: 0, scale: 0.8, x: 10 }}
+                              onClick={(e) => handleEditClick(e, book)}
+                              className="p-1.5 bg-zinc-800/90 text-zinc-300 rounded-md hover:bg-zinc-700 hover:text-zinc-100 transition-colors backdrop-blur-md border border-zinc-700/50 shadow-sm"
+                              title="Edit Book"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </motion.button>
+                            <motion.button
+                              initial={{ opacity: 0, scale: 0.8, x: 10 }}
+                              animate={{ opacity: 1, scale: 1, x: 0 }}
+                              exit={{ opacity: 0, scale: 0.8, x: 10 }}
+                              onClick={(e) => handleDeleteLocalBook(e, book.id)}
+                              className="p-1.5 bg-red-950/90 text-red-400 rounded-md hover:bg-red-900 hover:text-red-300 transition-colors backdrop-blur-md border border-red-900/50 shadow-sm"
+                              title="Delete Book"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </motion.button>
+                          </>
                         )}
                       </AnimatePresence>
                       <button
@@ -259,7 +294,7 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
                   </div>
                   <div>
                     <h3 className="font-medium text-zinc-200 leading-tight line-clamp-2">{book.title}</h3>
-                    <p className="text-sm text-zinc-500 mt-1">Local Vault</p>
+                    <p className="text-sm text-zinc-500 mt-1 line-clamp-1">{book.author || 'Local Vault'}</p>
                   </div>
                 </motion.div>
               ))}
@@ -330,6 +365,70 @@ export function Gateway({ onDocumentSelected }: GatewayProps) {
           </motion.p>
         )}
       </div>
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editingBook && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+                <h3 className="text-lg font-medium text-zinc-100">Edit Book Details</h3>
+                <button
+                  onClick={() => setEditingBook(null)}
+                  className="p-1 text-zinc-400 hover:text-zinc-100 transition-colors rounded-md hover:bg-zinc-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-zinc-400">Title</label>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-zinc-200 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
+                    placeholder="Book Title"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-zinc-400">Author</label>
+                  <input
+                    type="text"
+                    value={editAuthor}
+                    onChange={(e) => setEditAuthor(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-zinc-200 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
+                    placeholder="Author Name"
+                  />
+                </div>
+              </div>
+              <div className="p-4 border-t border-zinc-800 bg-zinc-950/50 flex justify-end gap-3">
+                <button
+                  onClick={() => setEditingBook(null)}
+                  className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-4 py-2 text-sm font-medium bg-zinc-100 text-zinc-900 rounded-lg hover:bg-white transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
